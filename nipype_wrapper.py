@@ -170,7 +170,8 @@ class Pipeline(base.GenericPipeline):
 
             unit.status = status
             
-        self._workflow.run(plugin='MultiProc', plugin_args={'status_callback': status_callback, 'n_procs':4})
+        #self._workflow.run(plugin='MultiProc', plugin_args={'status_callback': status_callback, 'n_procs':4})
+        self._workflow.run(plugin='IPython', plugin_args={'status_callback': status_callback})
 
 
     # TODO: Think about it a lot, and then remove it
