@@ -13,7 +13,7 @@ from nipype.interfaces.utility import Function
 from nipype.pipeline.engine import Workflow, Node, MapNode
 
 # common import strings
-COMMON_IMPORTS = ['import logging', 'import time']
+COMMON_IMPORTS = ['import logging', 'import time', 'import os', 'import numpy as np']
 MVPA_IMPORTS = ['from mvpa2 import suite']
 NBACK_IMPORTS = ['import util', 'from nback_io import get_data']
 IMPORTS = COMMON_IMPORTS + MVPA_IMPORTS + NBACK_IMPORTS
@@ -69,7 +69,7 @@ class NbackSource(Unit):
     interface = reader_iface
     tag = 'Sources'
 
-    data_path = text_parameter('data_path', 'data')
+    data_path = text_parameter('data_path', '/mnt/antares_raid/groups/norway/Nback/nipype_wrapper/data')
     condition = text_parameter('condition', 'Bipolar')
     subject = text_parameter('subject', '1000')
 
