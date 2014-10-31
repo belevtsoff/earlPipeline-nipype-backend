@@ -207,5 +207,5 @@ class DataLogger(Unit):
 
 def get_unit_types():
     #return [DataSource, PipelineMapper, DataLogger]
-    return [DataSource, DataLogger]
+    return [RangeSource, NbackSource, DataLogger]
 
