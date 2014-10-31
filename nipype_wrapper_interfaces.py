@@ -58,6 +58,8 @@ def reader_func(logger_name, data_path, condition, subject):
     ds.a.imghdr.set_data_dtype(np.dtype('int16'))
     ds.sa['chunks_balanced'] = ds.chunks % 4
 
+    logger.info('Got data')
+
     return ds
 
 reader_iface = Function(input_names=['logger_name', 'data_path', 'condition', 'subject'],
