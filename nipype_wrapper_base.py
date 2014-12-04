@@ -1,6 +1,6 @@
 import nipype.pipeline.engine as pe
 from nipype.interfaces.utility import Function
-from nipype.interfaces.base import Interface
+import nipype.interfaces.base as nibase
 
 from earlpipeline.backends import base
 
@@ -8,7 +8,7 @@ import pickle
 from abc import ABCMeta
 
 # Metaclass for additional operations
-class NipypeNodeWrapperType(ABCMeta):
+class NipypeNodeWrapperMeta(ABCMeta):
     """Metaclass for creating a wrapper class around a Nipype
     interface object. It is inherited from ABCMeta metaclass to still
     allow for abstract methods"""
@@ -18,7 +18,7 @@ class NipypeNodeWrapperType(ABCMeta):
         instance) and do the necessary preparations"""
 
         # pass over to the parent metaclass
-        super(NipypeNodeWrapperType, cls).__init__(name, bases, dct)
+        super(NipypeNodeWrapperMeta, cls).__init__(name, bases, dct)
 
         # do additional stuff only for inherited classes
         if name != 'NipypeWrapperUnit':
@@ -42,9 +42,9 @@ class NipypeNodeWrapperType(ABCMeta):
                 if not input_traits.has_key(p_name):
                     raise Exception("Passed parameter %s doesn't correspond to any input port of interface %s" % (p_name, repr(interface)))
 
-            # store parameter names in a list to exclude them from the list of
-            # input ports
-            cls.hidden_in_ports = parameter_names
+            # Add parameter names to a list of excluded ports (they're not used
+            # for dynamic data transfer)
+            cls.hidden_in_ports += parameter_names
 
             # if a special input attribute "logger_name" is present in the
             # interface and not a parameter, add it to the list of hidden ports
@@ -55,7 +55,7 @@ class NipypeNodeWrapperType(ABCMeta):
 
 
 class NipypeWrapperUnit(base.GenericUnit):
-    __metaclass__ = NipypeNodeWrapperType
+    __metaclass__ = NipypeNodeWrapperMeta
 
     # overload this please!
     interface = None
@@ -100,18 +100,39 @@ class NipypeWrapperUnit(base.GenericUnit):
 
     @classmethod
     def get_in_ports(cls):
-        if isinstance(cls.interface, Function):
-            # don't show ports which are parameters
-            return [p for p in cls.interface._input_names if not p in cls.hidden_in_ports]
+        #if isinstance(cls.interface, Function):
+            #input_names = cls.interface._input_names
+        if isinstance(cls.interface, nibase.Interface):
+            input_names = cls.interface.inputs.traits().keys()
         else:
-            raise Exception("Not implemented for other classes")
+            raise Exception("Not implemented for interfaces of type %s" % type(cls.interface))
+
+        # don't show hidden ports
+        return [name for name in input_names if not name in cls.hidden_in_ports]
 
     @classmethod
     def get_out_ports(cls):
-        if isinstance(cls.interface, Function):
-            return cls.interface._output_names
+        #if isinstance(cls.interface, Function):
+            #return cls.interface._output_names
+        if isinstance(cls.interface, nibase.Interface):
+            # Check if the output specification is dynamic. If so, try to
+            # obtain output ports from the secret `_outputs` field
+            # TODO: this checking is ugly, but issubclass doesn't always gives True
+            if cls.interface.output_spec.__name__ == "DynamicTraitedSpec":
+                try:
+                    return cls.interface._outputs.trait_get().keys()
+                except:
+                    raise Exception("Couldn't obtain output ports from DynamicTraitedSpec")
+            # otherwise, try to get it the usual way from the public "outputs"
+            # field
+            else:
+                try:
+                    return cls.interface.outputs.traits.keys()
+                except:
+                    raise Exception("Couldn't obtain output ports from %s"
+                            % cls.interface.output_spec.__name__)
         else:
-            raise Exception("Not implemented for other classes")
+            raise Exception("Not implemented for interfaces of type %s" % type(cls.interface))
 
     def get_parameter(self, name):
         return getattr(self._node.inputs, name)
