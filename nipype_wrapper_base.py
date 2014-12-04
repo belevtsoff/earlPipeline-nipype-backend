@@ -26,7 +26,7 @@ class NipypeNodeWrapperMeta(ABCMeta):
             interface = dct['interface']
             if not interface:
                 raise Exception("Please, specify nipype interface as a class attribute")
-            elif not isinstance(interface, Interface):
+            elif not isinstance(interface, nibase.Interface):
                 raise Exception("Unknown interface type passed: %s, expected an instance of nipype.interfaces.base.Interface" % type(interface))
 
             # get a list of parameter objects
@@ -116,11 +116,11 @@ class NipypeWrapperUnit(base.GenericUnit):
             #return cls.interface._output_names
         if isinstance(cls.interface, nibase.Interface):
             # Check if the output specification is dynamic. If so, try to
-            # obtain output ports from the secret `_outputs` field
+            # obtain output ports from the secret `_outputs` method
             # TODO: this checking is ugly, but issubclass doesn't always gives True
             if cls.interface.output_spec.__name__ == "DynamicTraitedSpec":
                 try:
-                    return cls.interface._outputs.trait_get().keys()
+                    return cls.interface._outputs().trait_get().keys()
                 except:
                     raise Exception("Couldn't obtain output ports from DynamicTraitedSpec")
             # otherwise, try to get it the usual way from the public "outputs"
