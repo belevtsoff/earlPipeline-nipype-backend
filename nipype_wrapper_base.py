@@ -1,3 +1,5 @@
+"""Base classes for nipype backend"""
+
 import nipype.pipeline.engine as pe
 from nipype.interfaces.utility import Function
 import nipype.interfaces.base as nibase
@@ -26,13 +28,15 @@ redir_parameter_template = "%s_%s" # 0: port name; 1: port type (in/out)
 
 # Metaclass for additional operations
 class NipypeWrapperUnitMeta(ABCMeta):
-    """Metaclass for creating a wrapper class around a Nipype
-    interface object. It is inherited from ABCMeta metaclass to still
-    allow for abstract methods"""
+    """Metaclass for constructing a Unit class wrapping a Nipype interface
+    object. It is inherited from ABCMeta metaclass to still allow for abstract
+    methods"""
 
     def __init__(cls, name, bases, dct):
         """Check the class attributes of the newly created Unit class (not
-        instance) and do the necessary preparations"""
+        instance) and do the necessary checks and transformations. See
+        the 'NipypeWrapperUnit' documentation for the information about
+        configurable class attributes"""
 
         # pass over to the parent metaclass
         super(NipypeWrapperUnitMeta, cls).__init__(name, bases, dct)
@@ -122,6 +126,38 @@ class NipypeWrapperUnitMeta(ABCMeta):
 
 
 class NipypeWrapperUnit(base.GenericUnit):
+    """Base class for earlPipelie units, wrapping a nipype interface. For
+    implementing custom behavior, overload the necessary methods. However, in
+    most of the cases, configuration should be done via overloading special
+    class attributes (see 'nipype_wrapper_interfaces.py' for exmaples). This
+    class provides partial implementation of the
+    'earlpipeline.backends.base.GenericUnit' base class.
+    
+    Special class attributes:
+        
+        interface (mandatory): nipype.interfaces.Interface instance
+            A nipype interface that should be wrapped.
+        tag: string
+            Specifies the name of the sub-menu where this unit will be put by
+            the GUI (e.g. "Sources")
+        instance_name_template: string
+            This field will be appended with a number and used as a name for
+            all units of this type
+        hidden_in_ports: list of string
+            List of names of input traits of the nipype interface, that
+            shouldn't be exposed as input ports.
+        redirected_ports_number: {'in': int, 'out': int}
+            Numbers of automatically created input and output ports (slots) for
+            redirection. Along with each port, a parameter with the same name
+            is created whose value specifies the name of the nipype port to
+            which the input of that port should be redirected. The output
+            redirection is handled analogously.
+        <any_name>: earlpipeline.backends.base.Parameter instance
+            parameters (which are referred to the nipype input ports woth the
+            same name) that are exposed via Unit's parameters dialog. A nipype
+            port can be exposed both as a parameter and an input port, if
+            excluded from 'hidden_in_ports' list.
+        """
     __metaclass__ = NipypeWrapperUnitMeta
 
     def __init__(self):
@@ -131,7 +167,8 @@ class NipypeWrapperUnit(base.GenericUnit):
             self.node_attrs = {}
 
     def initialize(self, name):
-        """Initializes underlying nipype.Node instance"""
+        """Initializes underlying nipype.Node instance. This method is called
+        by the Pipeline when the new unit instance is added"""
         if not hasattr(self, 'node_type'):
             self._node = pe.Node(self.interface, name, **self.node_attrs)
         else:
@@ -199,16 +236,14 @@ class NipypeWrapperUnit(base.GenericUnit):
             except:
                 raise AttributeError("Nipype node %s doesn't have parameter named %s" % (self._node.name, name))
 
-
-            
-
-
     def set_parameter(self, name, value):
         self._node.inputs.set(**{name: value})
 
 
 
 class NipypeWrapperPipeline(base.GenericPipeline):
+    """Implementation of 'earlpipeline.backends.base.GenericPipeline' as a
+    wrapper for the 'nipype.pipeline.engine.Workflow'"""
     def __init__(self, name, *args, **kwargs):
         super(NipypeWrapperPipeline, self).__init__()
         self._workflow = pe.Workflow(name, *args, **kwargs)

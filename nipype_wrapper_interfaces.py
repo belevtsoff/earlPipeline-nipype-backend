@@ -1,3 +1,5 @@
+"""Nipype backend classes"""
+
 # Nipype wrapper base classes
 from nipype_wrapper_base import NipypeWrapperUnit as Unit
 from nipype_wrapper_base import NipypeWrapperPipeline as Pipeline
