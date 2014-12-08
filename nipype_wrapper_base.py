@@ -244,6 +244,11 @@ class NipypeWrapperPipeline(base.GenericPipeline):
     def remove_unit(self, unit_name):
         unit = self._units[unit_name]
         self._workflow.remove_nodes([unit._node])
+
+        # remove all related edges
+        for ename, edge in self._edges.items():
+            if edge.src == unit_name or edge.dst == unit_name:
+                del self._edges[ename]
         del self._units[unit_name]
 
     def connect(self, src_name, src_port, dest_name, dest_port):
@@ -284,14 +289,15 @@ class NipypeWrapperPipeline(base.GenericPipeline):
         src.inputs._output['slot_1_in/out']. The reason the strange
         _output variable is used is because this is how nipype interface's
         add_trait method works"""
-        #import ipdb; ipdb.set_trace()
         wf_src_port, wf_dest_port = src_port, dest_port
         src_unit = self._units[src_name]
         dest_unit = self._units[dest_name]
 
-        if src_unit.redirect_out_ports:
+        if src_unit.redirect_out_ports and\
+                (src_port in src_unit.redirected_out_ports):
             wf_src_port = src_unit.get_parameter(redir_parameter_template % (src_port, 'out'))
-        if dest_unit.redirect_in_ports:
+        if dest_unit.redirect_in_ports and\
+                (dest_port in dest_unit.redirected_in_ports):
             # experimental: add it to hidden ports
             wf_dest_port = dest_unit.get_parameter(redir_parameter_template % (dest_port, 'in'))
 
