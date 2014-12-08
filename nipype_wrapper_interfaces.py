@@ -9,13 +9,14 @@ from earlpipeline.backends.base import Parameter
 import nipype.interfaces.io as nio
 import nipype.interfaces.fsl as fsl
 import nipype.interfaces.utility as util
-import nipype.pipeline.engine as pe
 import os
 from nipype.workflows.dmri.fsl.dti import create_eddy_correct_pipeline, create_bedpostx_pipeline
 
 # parameter shortcuts
 def text_parameter(name, default):
     return Parameter(name, 'input', str, default, datatype='text')
+def path_parameter(name, default):
+    return Parameter(name, 'input', os.path.abspath, default, datatype='text')
 def float_parameter(name, default):
     return Parameter(name, 'input', float, default, datatype='number')
 def int_parameter(name, default):
@@ -63,11 +64,8 @@ datasource_iface = nio.DataGrabber(infields=['subject_id'],
 # hardcoded here for now (as defaults for interface):
 datasource_iface.inputs.template = "%s/%s"
 
-#datasource_iface.inputs.base_directory = os.path.abspath('../../fsl_course_data/fdt2/')
-
 datasource_iface.inputs.field_template = dict(dwi='%s/%s.nii.gz')
 datasource_iface.inputs.template_args = info
-
 
 class DTIDataSource(Unit):
     interface = datasource_iface
@@ -89,7 +87,7 @@ class DTIDataSource(Unit):
 
     # expose some ports as parameters
     subject_id = text_parameter('subject_id', 'subj1')
-    base_directory = text_parameter('base_directory', '/home/dmytro/work/TU/fsl_course_data/fdt2')
+    base_directory = path_parameter('base_directory', '../../fsl_course_data/fdt2')
     sort_filelist = boolean_parameter('sort_filelist', True)
 
 
@@ -233,52 +231,20 @@ class DataSink5(Unit):
     instance_name_template = "datasink"
     redirected_ports_number = {'in': 2, 'out': 0}
 
+    hidden_in_ports = ['ignore_exception',
+                        'strip_dir',
+                        'remove_dest_dir',
+                        '_outputs',
+                        'substitutions',
+                        'parameterization',
+                        'regexp_substitutions']
+
+    ignore_exception = boolean_parameter('ignore_exception', False)
+    parameterization = boolean_parameter('parameterization', True)
+    remove_dest_dir = boolean_parameter('remove_dest_dir', False)
+    base_directory = path_parameter('base_directory', 'test_data')
 
 
-
-
-#infosource = pe.Node(interface=util.IdentityInterface(fields=['subject_id']),
-                     #name="infosource")    
-#infosource.inputs.subject_id = "subj1"
-
-#datasource = pe.Node(interface=nio.DataGrabber(infields=['subject_id'],
-                                               #outfields=info.keys()), name = 'datasource')
-#datasource.inputs.template = "%s/%s"
-
-#datasource.inputs.base_directory = os.path.abspath('../../fsl_course_data/fdt2/')
-
-#datasource.inputs.field_template = dict(dwi='%s/%s.nii.gz',
-                                        #seed_file="%s.bedpostX/%s.nii.gz",
-                                        #target_masks="%s.bedpostX/%s.nii.gz")
-#datasource.inputs.template_args = info
-#datasource.inputs.sort_filelist = True
-
-#computeTensor = pe.Workflow(name='computeTensor')
-
-#fslroi = pe.Node(interface=fsl.ExtractROI(),name='fslroi')
-#fslroi.inputs.t_min=0
-#fslroi.inputs.t_size=1
-
-#bet = pe.Node(interface=fsl.BET(),name='bet')
-#bet.inputs.mask=True
-#bet.inputs.frac=0.34
-
-#eddycorrect = create_eddy_correct_pipeline('eddycorrect')
-#eddycorrect.inputs.inputnode.ref_num=0
-
-#dtifit = pe.Node(interface=fsl.DTIFit(),name='dtifit')
-
-#computeTensor.connect([
-                        #(infosource,datasource,[('subject_id', 'subject_id')]),
-                        #(datasource,fslroi,[('dwi','in_file')]),
-                        #(datasource, dtifit, [('bvals', 'bvals'),
-                                              #('bvecs', 'bvecs')]),
-                        #(datasource, eddycorrect, [('dwi', 'inputnode.in_file')]),
-                        #(fslroi,bet,[('roi_file','in_file')]),
-                        #(eddycorrect, dtifit,[('outputnode.eddy_corrected','dwi')]),
-                        #(infosource, dtifit,[['subject_id','base_name']]),
-                        #(bet,dtifit,[('mask_file','mask')])
-                      #])
 
 def get_unit_types():
     # list of all classes that are visible from the GUI
