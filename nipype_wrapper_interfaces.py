@@ -293,7 +293,7 @@ class DataSink5(Unit):
     interface = datasink_interface
     tag = "Sinks"
     instance_name_template = "datasink"
-    redirected_ports_number = {'in': 2, 'out': 0}
+    redirected_ports_number = {'in': 5, 'out': 0}
 
     hidden_in_ports = ['ignore_exception',
                         'strip_dir',
