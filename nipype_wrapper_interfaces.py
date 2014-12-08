@@ -14,6 +14,8 @@ import nipype.interfaces.utility as util
 import os
 from nipype.workflows.dmri.fsl.dti import create_eddy_correct_pipeline, create_bedpostx_pipeline
 
+import __builtin__
+
 # parameter shortcuts
 def text_parameter(name, default):
     return Parameter(name, 'input', str, default, datatype='text')
@@ -48,6 +50,67 @@ class PrimitiveSource(Unit):
     int_par = int_parameter('int_par', 2)
     bool_par = boolean_parameter('bool_par', True)
 
+
+##############################################################################
+# IterableSource
+##############################################################################
+
+I = util.IdentityInterface(fields=['output_val'])
+
+class IterableSource(Unit):
+    interface = I
+    tag = "Sources"
+    instance_name_template = "itsrc"
+    check_in_ports = False
+
+    # obviously
+    hidden_in_ports = ['output_val',
+            'iterable_file',
+            'iterable_type']
+
+    iterable_file = path_parameter('iterable_file', 'iterable.txt')
+    iterable_type = Parameter('iterable_type', 'dropdown', str, 'str',
+            items = ['str', 'int', 'float'])
+
+    # augment the 'set_parameter' method to set the iterable
+    def set_parameter(self, name, value):
+        # run the original method first
+        super(IterableSource, self).set_parameter(name, value)
+
+        # if it is iterable_file parameter, set the iterables
+        if name == 'iterable_file':
+            item_type = getattr(__builtin__, self.iterable_type)
+            with open(value) as f:
+                items = [item_type(line.rstrip('\n')) for line in f.readlines()]
+                self._node.iterables = ("output_val", items) 
+
+
+##############################################################################
+# Type Converter
+##############################################################################
+
+def type_convert(input_val, output_type):
+    import __builtin__
+    type_func = getattr(__builtin__, output_type)
+    output = type_func(input_val)
+    return output
+
+func_iface = util.Function(input_names=['input_val', 'output_type'],
+        output_names=['output_val'],
+        function=type_convert)
+
+class TypeConverter(Unit):
+    interface = func_iface
+    tag = "Utility"
+    instance_name_template = "conv"
+
+    hidden_in_ports = ['output_type',
+            'ignore_exception',
+            'function_str']
+
+    ignore_exception = boolean_parameter('ignore_exception', False)
+    output_type = Parameter('output_type', 'dropdown', str, 'str',
+            items = ['str', 'int', 'float'])
 
 
 ##############################################################################
@@ -158,7 +221,6 @@ class BrainExtractor(Unit):
                      't2_guided',
                      'ignore_exception',
                      'vertical_gradient',
-                     'frac',
                      'reduce_bias',
                      'args',
                      'padding',
@@ -251,6 +313,8 @@ class DataSink5(Unit):
 def get_unit_types():
     # list of all classes that are visible from the GUI
     return [PrimitiveSource,
+            IterableSource,
+            TypeConverter,
             DTIDataSource,
             ROIExtractor,
             BrainExtractor,
