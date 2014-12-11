@@ -12,6 +12,7 @@ import nipype.interfaces.io as nio
 import nipype.interfaces.fsl as fsl
 import nipype.interfaces.utility as util
 import os
+import inspect
 from nipype.workflows.dmri.fsl.dti import create_eddy_correct_pipeline, create_bedpostx_pipeline
 
 import __builtin__
@@ -86,31 +87,48 @@ class IterableSource(Unit):
 
 
 ##############################################################################
-# Type Converter
+# Python Function
 ##############################################################################
 
-def type_convert(input_val, output_type):
-    import __builtin__
-    type_func = getattr(__builtin__, output_type)
-    output = type_func(input_val)
-    return output
+import pickle
 
-func_iface = util.Function(input_names=['input_val', 'output_type'],
-        output_names=['output_val'],
-        function=type_convert)
+def func(in_val1=None, in_val2=None):
+    """This is a dummy function that just passes over its
+    arguments. Edit the function code to make it do something
+    useful. 
+    
+    WARING: don't change the signature of the function, as
+    it's gonna cause an error. However, you can use only one
+    of the in/out ports, if you don't need the other one"""
 
-class TypeConverter(Unit):
+    # just pass over
+    out_val1 = in_val1
+    out_val2 = in_val2
+
+    return out_val1, out_val2
+
+# the function_str field is stored in a pickled format, for some reason, so
+# I'll use this function to prepare it for front-end
+def after_read(val):
+    return pickle.loads(val)
+
+func_iface = util.Function(input_names=['in_val1', 'in_val2'],
+        output_names=['out_val1', 'out_val2'])
+
+class PyFunction2(Unit):
     interface = func_iface
     tag = "Utility"
-    instance_name_template = "conv"
+    instance_name_template = "func"
 
-    hidden_in_ports = ['output_type',
+    hidden_in_ports = [
             'ignore_exception',
             'function_str']
 
     ignore_exception = boolean_parameter('ignore_exception', False)
-    output_type = Parameter('output_type', 'dropdown', str, 'str',
-            items = ['str', 'int', 'float'])
+    function_str = Parameter('function_str', 'code', str,
+            inspect.getsource(func),
+            after_read=after_read,
+            lang='python')
 
 
 ##############################################################################
@@ -310,11 +328,12 @@ class DataSink5(Unit):
 
 
 
+
 def get_unit_types():
     # list of all classes that are visible from the GUI
     return [PrimitiveSource,
             IterableSource,
-            TypeConverter,
+            PyFunction2,
             DTIDataSource,
             ROIExtractor,
             BrainExtractor,
